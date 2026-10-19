@@ -7,6 +7,7 @@ on:
 
 jobs:
   macos:
+    name: Xcode
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -15,6 +16,15 @@ jobs:
         run: |
           xcodebuild -version
           swift --version
+
+      # In newer macOS SDKs SwiftUI's @State is a macro whose plugin ships only with full Xcode,
+      # so it breaks Command Line Tools builds. Use ViewState (Views/Components.swift) instead.
+      - name: No @State
+        run: |
+          if grep -rnE "@State( |$)" Sources; then
+            echo "::error::Use @StateObject with ViewState instead of @State (see Views/Components.swift)."
+            exit 1
+          fi
 
       - name: Core tests
         run: swift test 2>&1 | tee test.log
@@ -38,3 +48,29 @@ jobs:
         with:
           name: ScufBridge
           path: build/ScufBridge.zip
+
+  command-line-tools:
+    name: Command Line Tools only
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the Command Line Tools instead of Xcode
+        run: |
+          sudo xcode-select -s /Library/Developer/CommandLineTools
+          xcode-select -p
+          swift --version
+          ls /Library/Developer/CommandLineTools/SDKs
+
+      - name: Build app
+        run: |
+          set -o pipefail
+          chmod +x scripts/build_app.sh
+          scripts/build_app.sh 2>&1 | tee build.log
+
+      - name: Report compiler errors
+        if: failure()
+        run: |
+          grep -hE "error:" build.log 2>/dev/null | sort -u | head -80 | while IFS= read -r line; do
+            echo "::error::${line}"
+          done

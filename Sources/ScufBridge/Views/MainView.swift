@@ -9,11 +9,16 @@ enum SidebarItem: Hashable {
 
 struct MainView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var selection: SidebarItem? = .controller
+    @StateObject private var selectionState = ViewState<SidebarItem?>(.controller)
+
+    private var selection: SidebarItem? {
+        get { selectionState.value }
+        nonmutating set { selectionState.value = newValue }
+    }
 
     var body: some View {
         NavigationSplitView {
-            List(selection: $selection) {
+            List(selection: $selectionState.value) {
                 Section("Profiles") {
                     ForEach(model.config.profiles) { profile in
                         ProfileRow(

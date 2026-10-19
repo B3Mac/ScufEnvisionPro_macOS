@@ -6,12 +6,17 @@ import ScufCore
 struct ButtonsTab: View {
     @EnvironmentObject private var model: AppModel
     @Binding var profile: Profile
-    @State private var selected: ControllerButton? = .g1
+    @StateObject private var selectedState = ViewState<ControllerButton?>(.g1)
+
+    private var selected: ControllerButton? {
+        get { selectedState.value }
+        nonmutating set { selectedState.value = newValue }
+    }
 
     var body: some View {
         HSplitView {
             VStack(spacing: 0) {
-                List(selection: $selected) {
+                List(selection: $selectedState.value) {
                     ForEach(ButtonGroup.allCases, id: \.self) { group in
                         Section(group.rawValue) {
                             ForEach(group.buttons, id: \.self) { input in
@@ -49,7 +54,7 @@ struct ButtonsTab: View {
             }
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .background(FollowController(enabled: model.followController, selected: $selected))
+        .background(FollowController(enabled: model.followController, selected: $selectedState.value))
     }
 
     private func actionBinding(for input: ControllerButton) -> Binding<Action> {

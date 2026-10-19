@@ -2,11 +2,33 @@ import AppKit
 import SwiftUI
 import ScufCore
 
+/// Local view state held in a `@StateObject`.
+///
+/// Used instead of `@State`: in newer macOS SDKs `@State` is a macro whose plugin ships only with
+/// full Xcode, so `@State` code fails to build with just the Command Line Tools.
+final class ViewState<Value>: ObservableObject {
+    @Published var value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+}
+
 /// Shows a key combination with a Record button, a key menu and modifier checkboxes.
 struct KeyComboField: View {
     @Binding var combo: KeyCombo
-    @State private var recording = false
-    @State private var monitor: Any?
+    @StateObject private var recordingState = ViewState(false)
+    @StateObject private var monitorState = ViewState<Any?>(nil)
+
+    private var recording: Bool {
+        get { recordingState.value }
+        nonmutating set { recordingState.value = newValue }
+    }
+
+    private var monitor: Any? {
+        get { monitorState.value }
+        nonmutating set { monitorState.value = newValue }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -121,7 +143,12 @@ struct LabeledSlider: View {
 struct MacroEditor: View {
     @Binding var macro: Macro
     @StateObject private var recorder = MacroRecorder()
-    @State private var recordFailed = false
+    @StateObject private var recordFailedState = ViewState(false)
+
+    private var recordFailed: Bool {
+        get { recordFailedState.value }
+        nonmutating set { recordFailedState.value = newValue }
+    }
 
     var body: some View {
         Section("Playback") {
@@ -214,7 +241,12 @@ private struct MacroStepRow: View {
     let count: Int
     let move: (Int) -> Void
     let delete: () -> Void
-    @State private var editingCombo = false
+    @StateObject private var editingComboState = ViewState(false)
+
+    private var editingCombo: Bool {
+        get { editingComboState.value }
+        nonmutating set { editingComboState.value = newValue }
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -239,7 +271,7 @@ private struct MacroStepRow: View {
         case .tap(let combo):
             Text("Tap")
             Button(combo.summary) { editingCombo = true }
-                .popover(isPresented: $editingCombo) {
+                .popover(isPresented: $editingComboState.value) {
                     KeyComboField(combo: Binding(get: { combo }, set: { step = .tap(combo: $0) }))
                         .padding()
                 }
