@@ -1,0 +1,40 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Core tests
+        run: swift test 2>&1 | tee test.log
+
+      - name: Build app
+        run: |
+          set -o pipefail
+          chmod +x scripts/build_app.sh
+          scripts/build_app.sh 2>&1 | tee build.log
+
+      - name: Report compiler errors
+        if: failure()
+        run: |
+          grep -hE "error:|warning: .*(Sendable|isolat)" build.log test.log 2>/dev/null | sort -u | head -80 | while IFS= read -r line; do
+            echo "::error::${line}"
+          done
+
+      - name: Upload app
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScufBridge
+          path: build/ScufBridge.zip
