@@ -8,6 +8,7 @@ SCUF lists the Envision Pro as Windows-only. It does work on a Mac over USB, but
 
 ## What it does
 
+- **A 3D mapping page.** Drag the controller to turn it, flip it over to reach the paddles, and click any button to map it. Buttons light up as you press them.
 - **Every input is remappable**, including all 11 extras: **G1–G5**, paddles **P1–P4** and both **SAX** buttons, plus every standard button and both triggers.
 - **Actions** you can assign to any input:
   - a gamepad button (with optional turbo)
@@ -29,14 +30,27 @@ SCUF lists the Envision Pro as Windows-only. It does work on a Mac over USB, but
 
 ## Install
 
-You need macOS 15 or later and Xcode or the Xcode Command Line Tools.
+**Beta.** You need macOS 15 or later, on an Apple Silicon or Intel Mac.
+
+1. Download the latest **ScufBridge-x.y.z.dmg** from [Releases](https://github.com/B3Mac/ScufEnvisionPro_macOS/releases), open it, and drag ScufBridge into Applications.
+2. Open ScufBridge. Beta builds aren't signed by a registered Apple developer yet, so macOS refuses the first time. Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to ScufBridge. Or run this in Terminal:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/ScufBridge.app
+   ```
+3. Plug the controller in by USB. A controller icon appears in the menu bar.
+
+ScufBridge checks GitHub once a day for a newer release and shows it in the menu. It never downloads or installs anything on its own, and you can turn the check off under **Setup & Permissions**. After updating a beta, macOS may ask for Accessibility again.
+
+### Build from source
+
+You need Xcode or the Xcode Command Line Tools.
 
 ```bash
 git clone https://github.com/B3Mac/ScufEnvisionPro_macOS.git ~/Developer/ScufEnvisionPro_macOS
 cd ~/Developer/ScufEnvisionPro_macOS && scripts/build_app.sh --install
 ```
 
-This builds the app, copies it to `/Applications`, and launches it. A controller icon appears in the menu bar. To update later, run `git pull && scripts/build_app.sh --install`.
+This builds the app, copies it to `/Applications`, and launches it. To update later, run `git pull && scripts/build_app.sh --install`.
 
 On first launch, grant these under **System Settings → Privacy & Security**. The app's **Setup & Permissions** page has buttons that open each one.
 
@@ -84,6 +98,24 @@ Until then, the app reports the virtual gamepad as unavailable, and everything e
 - The factory onboard profile makes paddles and SAX buttons also press a standard button (P1→A, P2→Y, P3→B, P4→X, SAX→LB/RB). ScufBridge strips that copy so each extra input can be mapped on its own. If you press the paddle and the real button in the same millisecond, the real one is masked until you release the paddle.
 - G2, G3 and G4 also send volume down, volume up and mute straight to macOS. ScufBridge blocks that by default (it needs Input Monitoring). Their default mappings reproduce the same behaviour, so nothing changes until you remap them.
 
+## Supported controllers
+
+| Controller | Connection | Status |
+|---|---|---|
+| SCUF Envision Pro | USB cable | Supported |
+| SCUF Envision Pro | Wireless dongle | Not yet: needs a capture |
+| SCUF Envision (non-Pro) | USB cable | Untested: needs a capture |
+
+### Help add a controller
+
+With the controller (or its dongle) plugged in, run:
+
+```bash
+swift scripts/capture.swift | tee ~/Desktop/scuf_capture.txt
+```
+
+It prompts you through every button, about two minutes in all. Then open an issue and attach the file. Before attaching it, check that it doesn't include anything you'd rather not share. The script only records controller data and your macOS version.
+
 ## Roadmap
 
 - RGB lighting, trigger modes, and onboard profile sync. These need a capture of iCUE's USB traffic on Windows.
@@ -98,6 +130,10 @@ Until then, the app reports the virtual gamepad as unavailable, and everything e
 | `Sources/ScufCore` | Pure Swift: report decoding, profiles, mapping engine, keyboard mode, virtual-pad report. Unit-tested. |
 | `Sources/ScufBridge` | The macOS app: HID input thread, actions, macros, scripts, virtual gamepad, SwiftUI settings |
 | `Tests/ScufCoreTests` | Tests built from real captured controller reports |
-| `scripts/build_app.sh` | Builds, signs and optionally installs the `.app` |
+| `Packaging/Artwork` | Controller photos used by the 3D mapping page |
+| `scripts/build_app.sh` | Builds, signs and optionally installs the `.app`; `--universal --dmg` makes a release |
+| `scripts/capture.swift` | Guided HID capture for adding controllers |
 
-To run the tests: `swift test`.
+To run the tests: `swift test`. To publish a release, push a tag such as `v0.1.0-beta.1`. GitHub Actions builds a universal DMG and attaches it to a GitHub Release.
+
+Controller photos © SCUF Gaming / Corsair, used to illustrate the controller this app supports.

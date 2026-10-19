@@ -15,29 +15,24 @@ struct ButtonsTab: View {
 
     var body: some View {
         HSplitView {
-            VStack(spacing: 0) {
-                List(selection: $selectedState.value) {
-                    ForEach(ButtonGroup.allCases, id: \.self) { group in
-                        Section(group.rawValue) {
-                            ForEach(group.buttons, id: \.self) { input in
-                                InputRow(
-                                    input: input,
-                                    summary: profile.binding(for: input).summary(profileName: model.profileName),
-                                    customized: profile.bindings[input] != nil
-                                )
-                                .tag(input)
-                            }
-                        }
-                    }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    ControllerStage(
+                        selected: $selectedState.value,
+                        customized: Set(profile.bindings.keys),
+                        summary: summary
+                    )
+                    InputChips(
+                        selected: $selectedState.value,
+                        customized: Set(profile.bindings.keys)
+                    )
+                    Toggle("Press a controller button to select it", isOn: $model.followController)
+                        .toggleStyle(.checkbox)
+                        .font(.caption)
                 }
-                Divider()
-                Toggle("Press a controller button to select it", isOn: $model.followController)
-                    .toggleStyle(.checkbox)
-                    .font(.caption)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
             }
-            .frame(minWidth: 300, idealWidth: 340)
+            .frame(minWidth: 500, idealWidth: 620)
 
             Group {
                 if let input = selected {
@@ -55,6 +50,10 @@ struct ButtonsTab: View {
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .background(FollowController(enabled: model.followController, selected: $selectedState.value))
+    }
+
+    private func summary(_ input: ControllerButton) -> String {
+        profile.binding(for: input).summary(profileName: model.profileName)
     }
 
     private func actionBinding(for input: ControllerButton) -> Binding<Action> {
@@ -81,34 +80,62 @@ private struct FollowController: View {
     }
 }
 
-/// Lights up while the input is held.
-private struct PressedDot: View {
+/// Every input as a chip, grouped. Includes inputs not visible in the current photo.
+private struct InputChips: View {
     @EnvironmentObject private var live: LiveModel
-    let input: ControllerButton
+    @Binding var selected: ControllerButton?
+    let customized: Set<ControllerButton>
 
     var body: some View {
-        Circle()
-            .fill(live.snapshot.held.contains(input) ? Color.green : Color.secondary.opacity(0.25))
-            .frame(width: 8, height: 8)
+        let held = live.snapshot.held.union(live.snapshot.state.buttons)
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(ButtonGroup.allCases, id: \.self) { group in
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(group.rawValue)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 118, alignment: .leading)
+                    FlowLayout(spacing: 6) {
+                        ForEach(group.buttons, id: \.self) { input in
+                            InputChip(
+                                title: input.shortName,
+                                isSelected: input == selected,
+                                isHeld: held.contains(input),
+                                isCustomized: customized.contains(input)
+                            )
+                            .onTapGesture { selected = input }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
-private struct InputRow: View {
-    let input: ControllerButton
-    let summary: String
-    let customized: Bool
+private struct InputChip: View {
+    let title: String
+    let isSelected: Bool
+    let isHeld: Bool
+    let isCustomized: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
-            PressedDot(input: input)
-            Text(input.displayName)
-            Spacer(minLength: 12)
-            Text(summary)
-                .font(.callout)
-                .foregroundStyle(customized ? Color.accentColor : Color.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
+        HStack(spacing: 5) {
+            Circle()
+                .fill(isHeld ? Color.green : (isCustomized ? Color.accentColor : Color.secondary.opacity(0.35)))
+                .frame(width: 6, height: 6)
+            Text(title)
+                .font(.callout.weight(isSelected ? .semibold : .regular))
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(
+            Capsule().fill(isSelected ? Color.accentColor.opacity(0.22) : Color.secondary.opacity(0.10))
+        )
+        .overlay(
+            Capsule().strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 1.2)
+        )
+        .contentShape(Capsule())
+        .animation(.easeOut(duration: 0.12), value: isHeld)
     }
 }
 

@@ -164,6 +164,8 @@ public struct AppConfig: Codable, Equatable, Sendable {
     public var blockOnboardMediaKeys: Bool
     /// Remove the button that paddles/SAX echo from the onboard profile.
     public var stripMirroredButtons: Bool
+    /// Check GitHub once a day for a newer release.
+    public var checkForUpdates: Bool
 
     public init(profiles: [Profile], activeProfileID: UUID, fallbackProfileID: UUID) {
         self.profiles = profiles
@@ -172,6 +174,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
         self.autoSwitch = true
         self.blockOnboardMediaKeys = true
         self.stripMirroredButtons = true
+        self.checkForUpdates = true
     }
 
     public init(from decoder: Decoder) throws {
@@ -186,6 +189,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
         autoSwitch = try c.decodeIfPresent(Bool.self, forKey: .autoSwitch) ?? true
         blockOnboardMediaKeys = try c.decodeIfPresent(Bool.self, forKey: .blockOnboardMediaKeys) ?? true
         stripMirroredButtons = try c.decodeIfPresent(Bool.self, forKey: .stripMirroredButtons) ?? true
+        checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? true
     }
 
     public static func makeDefault() -> AppConfig {

@@ -15,11 +15,13 @@ final class AppModel: ObservableObject {
         didSet {
             guard config != oldValue else { return }
             service.update(config: config)
+            if config.checkForUpdates != oldValue.checkForUpdates { applyUpdateSetting() }
             scheduleSave()
         }
     }
 
     let live = LiveModel()
+    let updates = UpdateChecker()
     @Published private(set) var virtualPadStatus: VirtualGamepad.Status = .starting
     @Published private(set) var accessibilityGranted = Permissions.accessibility
     @Published private(set) var inputMonitoringGranted = Permissions.inputMonitoring
@@ -68,6 +70,15 @@ final class AppModel: ObservableObject {
         })
 
         if !Permissions.accessibility { Permissions.requestAccessibility() }
+        applyUpdateSetting()
+    }
+
+    private func applyUpdateSetting() {
+        if config.checkForUpdates {
+            updates.startAutomaticChecks()
+        } else {
+            updates.stopAutomaticChecks()
+        }
     }
 
     // MARK: Live state

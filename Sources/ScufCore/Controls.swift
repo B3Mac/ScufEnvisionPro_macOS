@@ -45,6 +45,27 @@ public enum ControllerButton: String, CaseIterable, Codable, Hashable, Sendable,
         }
     }
 
+    /// A compact label for chips and hotspots.
+    public var shortName: String {
+        switch self {
+        case .dpadUp: return "D-pad ↑"
+        case .dpadDown: return "D-pad ↓"
+        case .dpadLeft: return "D-pad ←"
+        case .dpadRight: return "D-pad →"
+        case .l3: return "L3"
+        case .r3: return "R3"
+        case .home: return "Home"
+        case .profile: return "Profile"
+        case .p1: return "P1"
+        case .p2: return "P2"
+        case .p3: return "P3"
+        case .p4: return "P4"
+        case .saxLeft: return "SAX L"
+        case .saxRight: return "SAX R"
+        default: return displayName
+        }
+    }
+
     public var group: ButtonGroup {
         switch self {
         case .g1, .g2, .g3, .g4, .g5: return .gKeys

@@ -1,0 +1,107 @@
+name: Release
+
+# Every push to main builds the release DMG (downloadable from the run's artifacts).
+# Pushing a tag like v0.1.0-beta.1 also publishes it as a GitHub Release.
+#
+# Optional repository secrets, for when there's an Apple Developer account:
+#   SIGNING_P12, SIGNING_P12_PASSWORD   base64 .p12 of a "Developer ID Application" certificate
+#   NOTARY_KEY, NOTARY_KEY_ID, NOTARY_ISSUER   App Store Connect API key (.p8 contents) for notarization
+# Without them the app is signed ad hoc and users allow it once in Privacy & Security.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: macos-15
+    env:
+      SIGNING_P12: ${{ secrets.SIGNING_P12 }}
+      SIGNING_P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+      NOTARY_KEY: ${{ secrets.NOTARY_KEY }}
+      NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+      NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-dev.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          echo "Version: $VERSION"
+
+      - name: Import signing certificate
+        if: env.SIGNING_P12 != ''
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$SIGNING_P12" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security import "$RUNNER_TEMP/signing.p12" -k "$KEYCHAIN" -P "$SIGNING_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          IDENTITY="$(security find-identity -p codesigning "$KEYCHAIN" | grep -m1 -E '^\s+[0-9]+\)' | awk '{print $2}')"
+          echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build universal app and DMG
+        run: |
+          chmod +x scripts/build_app.sh
+          scripts/build_app.sh --universal --version "$VERSION" --dmg
+          lipo -archs build/ScufBridge.app/Contents/MacOS/ScufBridge
+          codesign -dv build/ScufBridge.app 2>&1 | grep -E "Identifier|Signature|Authority" || true
+          ls build/ScufBridge.app/Contents/Resources
+          mv build/ScufBridge.zip "build/ScufBridge-$VERSION.zip"
+
+      - name: Notarize
+        if: env.SIGNING_P12 != '' && env.NOTARY_KEY != ''
+        run: |
+          echo "$NOTARY_KEY" > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool submit "build/ScufBridge-$VERSION.dmg" \
+            --key "$RUNNER_TEMP/notary.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER" --wait
+          xcrun stapler staple "build/ScufBridge-$VERSION.dmg"
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScufBridge-${{ env.VERSION }}
+          path: |
+            build/ScufBridge-${{ env.VERSION }}.dmg
+            build/ScufBridge-${{ env.VERSION }}.zip
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > "$RUNNER_TEMP/notes.md" <<'NOTES'
+          ## Install
+
+          1. Download **ScufBridge-*.dmg** below, open it, and drag ScufBridge into Applications.
+          2. Open ScufBridge. If macOS says it can't be opened, go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to ScufBridge. (Or run `xattr -dr com.apple.quarantine /Applications/ScufBridge.app` in Terminal.)
+          3. Allow **Accessibility** and **Input Monitoring** when asked, then plug the controller in by USB.
+
+          Beta builds aren't signed by a registered Apple developer yet, which is why step 2 is needed. After updating, macOS may ask for Accessibility again.
+
+          NOTES
+          PRERELEASE=""
+          if [[ "$VERSION" == *-* ]]; then PRERELEASE="--prerelease"; fi
+          gh release create "$GITHUB_REF_NAME" \
+            "build/ScufBridge-$VERSION.dmg" "build/ScufBridge-$VERSION.zip" \
+            --title "ScufBridge $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --generate-notes \
+            $PRERELEASE

@@ -251,3 +251,55 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(config.resolve(.previous), config.profiles[1].id)
     }
 }
+
+final class UpdateTests: XCTestCase {
+    private func v(_ s: String) -> AppVersion { AppVersion(s)! }
+
+    func testParsing() {
+        XCTAssertEqual(v("v1.2.3").numbers, [1, 2, 3])
+        XCTAssertEqual(v("0.2.0-beta.3").prerelease, ["beta", "3"])
+        XCTAssertEqual(v("1.0.0+build.7").description, "1.0.0")
+        XCTAssertNil(AppVersion("latest"))
+        XCTAssertNil(AppVersion("1..2"))
+        XCTAssertNil(AppVersion("1.0-"))
+    }
+
+    func testOrdering() {
+        XCTAssertTrue(v("0.1.0") < v("0.1.1"))
+        XCTAssertTrue(v("0.9.0") < v("0.10.0"))
+        XCTAssertTrue(v("1.0.0-beta.2") < v("1.0.0-beta.10"))
+        XCTAssertTrue(v("1.0.0-alpha") < v("1.0.0-beta"))
+        XCTAssertTrue(v("1.0.0-beta.9") < v("1.0.0"))
+        XCTAssertTrue(v("1.0.0-beta") < v("1.0.0-beta.1"))
+        XCTAssertEqual(v("1.0"), v("1.0.0"))
+        XCTAssertFalse(v("1.0.0") < v("1.0.0"))
+    }
+
+    func testBetaTestersGetBetas() {
+        let releases = [
+            GitHubRelease(tagName: "v0.1.0-beta.1", htmlURL: "u1", prerelease: true),
+            GitHubRelease(tagName: "v0.1.0-beta.2", htmlURL: "u2", prerelease: true),
+            GitHubRelease(tagName: "v0.2.0-beta.1", htmlURL: "draft", draft: true, prerelease: true),
+        ]
+        let found = UpdatePolicy.newest(from: releases, current: v("0.1.0-beta.1"))
+        XCTAssertEqual(found?.release.htmlURL, "u2")
+        XCTAssertNil(UpdatePolicy.newest(from: releases, current: v("0.1.0-beta.2")))
+    }
+
+    func testStableUsersSkipBetas() {
+        let releases = [
+            GitHubRelease(tagName: "v1.1.0-beta.1", htmlURL: "beta", prerelease: true),
+            GitHubRelease(tagName: "v1.0.1", htmlURL: "stable"),
+            GitHubRelease(tagName: "nightly", htmlURL: "junk"),
+        ]
+        XCTAssertEqual(UpdatePolicy.newest(from: releases, current: v("1.0.0"))?.release.htmlURL, "stable")
+        XCTAssertNil(UpdatePolicy.newest(from: releases, current: v("1.0.1")))
+    }
+
+    func testDecodesGitHubJSON() throws {
+        let json = #"[{"tag_name":"v0.1.0-beta.1","html_url":"https://github.com/x/y/releases/tag/v0.1.0-beta.1","draft":false,"prerelease":true,"name":"x"}]"#
+        let releases = try JSONDecoder().decode([GitHubRelease].self, from: Data(json.utf8))
+        XCTAssertEqual(releases.first?.tagName, "v0.1.0-beta.1")
+        XCTAssertEqual(releases.first?.prerelease, true)
+    }
+}

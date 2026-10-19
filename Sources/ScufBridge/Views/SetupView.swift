@@ -1,8 +1,10 @@
+import AppKit
 import SwiftUI
 import ScufCore
 
 struct SetupView: View {
     @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var updates: UpdateChecker
 
     var body: some View {
         Form {
@@ -61,10 +63,41 @@ struct SetupView: View {
                     Button("Open Script Log") { model.revealScriptLog() }
                 }
             }
+
+            Section {
+                LabeledContent("Installed version", value: updates.currentVersion)
+                Toggle("Check for updates once a day", isOn: $model.config.checkForUpdates)
+                HStack {
+                    Button("Check Now") { updates.check() }
+                        .disabled(updates.state == .checking)
+                    Button("All Releases") { NSWorkspace.shared.open(UpdateChecker.releasesPage) }
+                    Spacer()
+                    Text(updateStatus)
+                        .foregroundStyle(.secondary)
+                }
+                if case .available = updates.state {
+                    Button("Download the Update") { updates.openAvailableUpdate() }
+                        .buttonStyle(.borderedProminent)
+                }
+            } header: {
+                Text("Updates")
+            } footer: {
+                Text("ScufBridge only asks GitHub for its release list. It never downloads or installs anything on its own.")
+            }
         }
         .formStyle(.grouped)
         .navigationTitle("Setup & Permissions")
         .onAppear { model.refreshPermissions() }
+    }
+
+    private var updateStatus: String {
+        switch updates.state {
+        case .idle: return ""
+        case .checking: return "Checking…"
+        case .upToDate: return "You're up to date."
+        case .available(let version, _): return "Version \(version) is available."
+        case .failed(let reason): return "Couldn't check: \(reason)"
+        }
     }
 }
 

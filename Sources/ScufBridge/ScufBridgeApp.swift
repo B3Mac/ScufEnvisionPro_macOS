@@ -11,6 +11,7 @@ struct ScufBridgeApp: App {
             MenuContent()
                 .environmentObject(model)
                 .environmentObject(model.live)
+                .environmentObject(model.updates)
         } label: {
             MenuBarLabel(live: model.live)
         }
@@ -20,6 +21,7 @@ struct ScufBridgeApp: App {
             MainView()
                 .environmentObject(model)
                 .environmentObject(model.live)
+                .environmentObject(model.updates)
                 .frame(minWidth: 960, minHeight: 640)
         }
         .defaultSize(width: 1080, height: 720)
@@ -47,9 +49,16 @@ private struct MenuBarLabel: View {
 private struct MenuContent: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var live: LiveModel
+    @EnvironmentObject private var updates: UpdateChecker
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
+        if case .available(let version, _) = updates.state {
+            Button("Update available: ScufBridge \(version)…") {
+                updates.openAvailableUpdate()
+            }
+            Divider()
+        }
         Text(live.snapshot.connected ? "SCUF Envision Pro connected" : "Controller not connected")
         Text(model.outputStatus.text)
         Divider()
@@ -66,6 +75,7 @@ private struct MenuContent: View {
         }
         .keyboardShortcut(",")
         Divider()
+        Text("Version \(updates.currentVersion)")
         Button("Quit ScufBridge") {
             NSApp.terminate(nil)
         }
