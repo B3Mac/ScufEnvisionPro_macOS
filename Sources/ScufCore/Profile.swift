@@ -70,6 +70,82 @@ public struct KeyboardMap: Codable, Hashable, Sendable {
         leftStick: DirectionKeys(up: KeyCodes.w, down: KeyCodes.s, left: KeyCodes.a, right: KeyCodes.d),
         rightStick: DirectionKeys(up: KeyCodes.i, down: KeyCodes.k, left: KeyCodes.j, right: KeyCodes.l)
     )
+
+    /// The default keyboard layout of the Wind Waker HD native port (ZeldaWWHDRecomp). Face buttons
+    /// by position, matching the port's own default: the bottom button is the Wii U's B.
+    public static let windWakerHDRecomp = KeyboardMap(
+        buttons: [
+            .a: 0x26,        // J -> B
+            .b: 0x28,        // K -> A
+            .x: 0x22,        // I -> Y
+            .y: 0x25,        // L -> X
+            .lb: 0x0C,       // Q -> L
+            .rb: 0x0E,       // E -> R
+            .lt: 0x38,       // Left Shift -> ZL (target)
+            .rt: 0x08,       // C -> ZR
+            .l3: 0x07,       // X -> left stick click
+            .r3: 0x09,       // V -> right stick click
+            .view: 0x30,     // Tab -> Minus
+            .menu: 0x24,     // Return -> Plus
+            .home: 0x04,     // H -> Home
+            .dpadUp: 0x12,   // 1
+            .dpadDown: 0x13, // 2
+            .dpadLeft: 0x14, // 3
+            .dpadRight: 0x15, // 4
+        ],
+        leftStick: DirectionKeys(up: KeyCodes.w, down: KeyCodes.s, left: KeyCodes.a, right: KeyCodes.d),
+        rightStick: DirectionKeys(up: KeyCodes.up, down: KeyCodes.down, left: KeyCodes.left, right: KeyCodes.right)
+    )
+}
+
+/// Ready-made keyboard layouts for games that only see the keyboard.
+public enum KeyboardPreset: String, CaseIterable, Sendable {
+    case ryujinx
+    case windWakerHDRecomp
+
+    public var displayName: String {
+        switch self {
+        case .ryujinx: return "Astris / Ryujinx"
+        case .windWakerHDRecomp: return "Wind Waker HD (native port)"
+        }
+    }
+
+    public var map: KeyboardMap {
+        switch self {
+        case .ryujinx: return .ryujinxDefault
+        case .windWakerHDRecomp: return .windWakerHDRecomp
+        }
+    }
+}
+
+/// Starting points for new profiles.
+public enum ProfileTemplate: String, CaseIterable, Sendable {
+    case blank
+    case astris
+    case windWakerHDRecomp
+
+    public var displayName: String {
+        switch self {
+        case .blank: return "Blank Profile"
+        case .astris: return "Astris (keyboard mode)"
+        case .windWakerHDRecomp: return "Wind Waker HD native port (keyboard mode)"
+        }
+    }
+
+    public func makeProfile() -> Profile {
+        switch self {
+        case .blank:
+            return Profile(name: "New Profile")
+        case .astris:
+            var profile = Profile(name: "Astris (keyboard mode)", output: .keyboard)
+            profile.keyboardMap = .ryujinxDefault
+            return profile
+        case .windWakerHDRecomp:
+            var profile = Profile(name: "Wind Waker HD (keyboard mode)", output: .keyboard)
+            profile.keyboardMap = .windWakerHDRecomp
+            return profile
+        }
+    }
 }
 
 public struct Profile: Codable, Identifiable, Hashable, Sendable {
@@ -194,8 +270,9 @@ public struct AppConfig: Codable, Equatable, Sendable {
 
     public static func makeDefault() -> AppConfig {
         let desktop = Profile(name: "Default", output: .virtualGamepad)
-        let astris = Profile(name: "Astris (keyboard mode)", output: .keyboard)
-        return AppConfig(profiles: [desktop, astris], activeProfileID: desktop.id, fallbackProfileID: desktop.id)
+        let astris = ProfileTemplate.astris.makeProfile()
+        let windWaker = ProfileTemplate.windWakerHDRecomp.makeProfile()
+        return AppConfig(profiles: [desktop, astris, windWaker], activeProfileID: desktop.id, fallbackProfileID: desktop.id)
     }
 
     public var activeProfile: Profile {

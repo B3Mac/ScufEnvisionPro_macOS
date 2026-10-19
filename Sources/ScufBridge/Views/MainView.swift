@@ -45,11 +45,18 @@ struct MainView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 4) {
-                    Button {
-                        selection = .profile(model.addProfile())
+                    Menu {
+                        ForEach(ProfileTemplate.allCases, id: \.self) { template in
+                            Button(template.displayName) {
+                                selection = .profile(model.addProfile(template))
+                            }
+                        }
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
                     .help("New profile")
                     Button {
                         if case .profile(let id)? = selection { delete(id) }

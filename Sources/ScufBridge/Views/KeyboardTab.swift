@@ -9,10 +9,18 @@ struct KeyboardTab: View {
     var body: some View {
         Form {
             Section {
-                Text("When this profile's output is **Keyboard mode**, gamepad buttons and stick directions press these keys. The defaults match Astris's (Ryujinx's) default keyboard layout, so set Astris → Settings → Input → Player 1 → Input Device to **Keyboard** and it just works. Sticks become 8-way digital.")
+                Text("When this profile's output is **Keyboard mode**, gamepad buttons and stick directions press these keys, for games that can't see the controller. Load the preset that matches the game's own keyboard layout so nothing needs remapping in the game. Sticks become 8-way digital.")
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Reset to Astris / Ryujinx Defaults") {
-                    profile.keyboardMap = .ryujinxDefault
+                Menu("Load Preset") {
+                    ForEach(KeyboardPreset.allCases, id: \.self) { preset in
+                        Button(preset.displayName) { profile.keyboardMap = preset.map }
+                    }
+                }
+                .fixedSize()
+                if let match = KeyboardPreset.allCases.first(where: { $0.map == profile.keyboardMap }) {
+                    Text("Matches the \(match.displayName) layout.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
             }
 

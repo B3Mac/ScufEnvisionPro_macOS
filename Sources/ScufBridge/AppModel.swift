@@ -140,8 +140,8 @@ final class AppModel: ObservableObject {
     }
 
     @discardableResult
-    func addProfile() -> UUID {
-        let profile = Profile(name: "New Profile")
+    func addProfile(_ template: ProfileTemplate = .blank) -> UUID {
+        let profile = template.makeProfile()
         config.profiles.append(profile)
         return profile.id
     }

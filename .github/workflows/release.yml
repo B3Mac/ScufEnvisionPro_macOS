@@ -99,9 +99,17 @@ jobs:
           NOTES
           PRERELEASE=""
           if [[ "$VERSION" == *-* ]]; then PRERELEASE="--prerelease"; fi
-          gh release create "$GITHUB_REF_NAME" \
-            "build/ScufBridge-$VERSION.dmg" "build/ScufBridge-$VERSION.zip" \
-            --title "ScufBridge $VERSION" \
-            --notes-file "$RUNNER_TEMP/notes.md" \
-            --generate-notes \
-            $PRERELEASE
+          ASSETS=("build/ScufBridge-$VERSION.dmg" "build/ScufBridge-$VERSION.zip")
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            # Created by hand on GitHub: attach the builds, and add install notes if it has none.
+            gh release upload "$GITHUB_REF_NAME" "${ASSETS[@]}" --clobber
+            if [ -z "$(gh release view "$GITHUB_REF_NAME" --json body --jq .body)" ]; then
+              gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+            fi
+          else
+            gh release create "$GITHUB_REF_NAME" "${ASSETS[@]}" \
+              --title "ScufBridge $VERSION" \
+              --notes-file "$RUNNER_TEMP/notes.md" \
+              --generate-notes \
+              $PRERELEASE
+          fi

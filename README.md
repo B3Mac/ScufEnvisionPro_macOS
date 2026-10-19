@@ -61,14 +61,21 @@ On first launch, grant these under **System Settings → Privacy & Security**. T
 
 If you have an *Apple Development* signing certificate, the build script uses it. Adding a free Apple ID in Xcode creates one, and with it, permissions persist across rebuilds. Without one the app is signed ad hoc, and macOS may ask for Accessibility again after a rebuild.
 
-## Using it with Astris
+## Using it with games
 
-Until the virtual gamepad is available:
+Games and emulators on the Mac can't see the Envision Pro, so until the virtual gamepad is available, use a **keyboard-mode** profile. It presses the keys the game already listens to. Each game needs its own profile, linked to it, so the profile switches on whenever that game is in front:
 
-1. In ScufBridge, open the **Astris (keyboard mode)** profile, go to **Profile → Add Running App**, and pick Astris. From then on, the profile turns on whenever Astris is in front.
-2. In Astris, open **Settings → Input → Player 1** and set **Input Device** to **Keyboard**. ScufBridge's default key layout matches Astris's defaults, so nothing else needs mapping.
+1. Create the profile with **+** at the bottom of the profile list, and pick the game's template.
+2. In that profile's **Profile** tab, choose **Add Running App** and pick the game.
 
-Face buttons map by position, the way a Switch controller is laid out. The bottom button is Switch **B** and the right button is Switch **A**. In keyboard mode, sticks are 8-way digital.
+Face buttons map by position, the way a Nintendo controller is laid out: the bottom button is **B** and the right button is **A**. In keyboard mode, sticks are 8-way digital.
+
+| Game | Template | In the game |
+|---|---|---|
+| Astris (Switch) | Astris (keyboard mode) | **Settings → Input → Player 1**: set **Input Device** to **Keyboard** |
+| The Wind Waker HD native port ([ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp)) | Wind Waker HD native port | Nothing to change, as long as **Input › Controls…** is still on its defaults |
+
+For any other game, use a blank profile, set **Output** to **Keyboard mode**, and match the keys on the **Keyboard Mode** tab to the game's own keyboard controls.
 
 ## Scripts
 

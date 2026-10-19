@@ -241,14 +241,14 @@ final class ConfigTests: XCTestCase {
 
     func testMissingFieldsFallBackToDefaults() throws {
         let back = try JSONDecoder().decode(AppConfig.self, from: Data("{}".utf8))
-        XCTAssertEqual(back.profiles.count, 2)
+        XCTAssertEqual(back.profiles.count, 3)
         XCTAssertTrue(back.autoSwitch)
     }
 
     func testResolveCycles() {
         let config = AppConfig.makeDefault()
         XCTAssertEqual(config.resolve(.next), config.profiles[1].id)
-        XCTAssertEqual(config.resolve(.previous), config.profiles[1].id)
+        XCTAssertEqual(config.resolve(.previous), config.profiles[2].id)
     }
 }
 
@@ -301,5 +301,39 @@ final class UpdateTests: XCTestCase {
         let releases = try JSONDecoder().decode([GitHubRelease].self, from: Data(json.utf8))
         XCTAssertEqual(releases.first?.tagName, "v0.1.0-beta.1")
         XCTAssertEqual(releases.first?.prerelease, true)
+    }
+}
+
+final class PresetTests: XCTestCase {
+    func testWindWakerPresetMatchesThePortsDefaults() {
+        let map = KeyboardMap.windWakerHDRecomp
+        XCTAssertEqual(map.buttons[.b], 0x28, "right face button is the Wii U's A, which is K")
+        XCTAssertEqual(map.buttons[.a], 0x26, "bottom face button is the Wii U's B, which is J")
+        XCTAssertEqual(map.buttons[.lt], 0x38, "ZL is Left Shift")
+        XCTAssertEqual(map.rightStick.up, KeyCodes.up, "camera is on the arrow keys")
+        XCTAssertEqual(map.leftStick.left, KeyCodes.a)
+    }
+
+    func testPresetsHaveNoDuplicateKeys() {
+        for preset in KeyboardPreset.allCases {
+            let map = preset.map
+            var keys = Array(map.buttons.values)
+            keys += [map.leftStick, map.rightStick].flatMap { [$0.up, $0.down, $0.left, $0.right].compactMap { $0 } }
+            XCTAssertEqual(keys.count, Set(keys).count, "\(preset) binds a key twice")
+        }
+    }
+
+    func testShiftForZLIsHeldAndReleased() {
+        var mapper = KeyboardModeMapper()
+        var pad = PadState()
+        pad.leftTrigger = 0.9
+        XCTAssertEqual(mapper.update(pad: pad, map: .windWakerHDRecomp).press, [0x38])
+        XCTAssertEqual(mapper.update(pad: PadState(), map: .windWakerHDRecomp).release, [0x38])
+    }
+
+    func testTemplates() {
+        XCTAssertEqual(ProfileTemplate.windWakerHDRecomp.makeProfile().output, .keyboard)
+        XCTAssertEqual(ProfileTemplate.windWakerHDRecomp.makeProfile().keyboardMap, .windWakerHDRecomp)
+        XCTAssertEqual(ProfileTemplate.blank.makeProfile().output, .virtualGamepad)
     }
 }
